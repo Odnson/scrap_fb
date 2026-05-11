@@ -1,0 +1,12 @@
+Cara Kerja
+Login manual di browser - Login ke Facebook di Chrome/Firefox
+Export cookies - Gunakan extension seperti "EditThisCookie" atau "Get cookies.txt LOCALLY"
+Simpan ke file - Simpan sebagai cookies.txt (format Netscape) atau facebook_cookies.json (format JSON)
+Load di script - Script akan otomatis load cookies dari file tersebut
+Di GUI
+Tab Konfigurasi → File Cookies: Pilih file cookies yang sudah di-export
+Tipe Cookies: Pilih txt atau json sesuai format file
+Format Cookies yang Didukung
+TXT (Netscape) - Format standar dari extension "Get cookies.txt LOCALLY"
+JSON - Format dari extension "EditThisCookie"
+Lihat file cookies.txt yang sudah ada sebagai contoh format.
