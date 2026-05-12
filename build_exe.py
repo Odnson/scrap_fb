@@ -6,17 +6,32 @@ import sys
 import subprocess
 
 def build_gui():
-    """Build GUI version ke EXE"""
-    print("Building GUI version to EXE...")
+    """Build GUI version ke EXE (Windows) atau .app (Mac)"""
+    import platform
+    system = platform.system()
+    
+    if system == "Windows":
+        print("Building GUI version to EXE...")
+        icon = "--icon=icon.ico" if os.path.exists("icon.ico") else ""
+        sep = ";"
+        output_ext = ".exe"
+    elif system == "Darwin":
+        print("Building GUI version to .app...")
+        icon = "--icon=icon.icns" if os.path.exists("icon.icns") else ""
+        sep = ":"
+        output_ext = ".app"
+    else:
+        print(f"Unsupported platform: {system}")
+        sys.exit(1)
     
     cmd = [
         "pyinstaller",
         "--name=FacebookScraperGUI",
         "--windowed",
         "--onefile",
-        "--icon=icon.ico" if os.path.exists("icon.ico") else "",
-        "--add-data=scrape_posts_v3.py;.",
-        "--add-data=requirements.txt;.",
+        icon,
+        f"--add-data=scrape_posts_v3.py{sep}.",
+        f"--add-data=requirements.txt{sep}.",
         "facebook_scraper_gui.py"
     ]
     
@@ -25,7 +40,7 @@ def build_gui():
     
     try:
         subprocess.run(cmd, check=True)
-        print("\n[SUCCESS] GUI EXE berhasil dibuat di dist/FacebookScraperGUI.exe")
+        print(f"\n[SUCCESS] GUI {output_ext} berhasil dibuat di dist/FacebookScraperGUI{output_ext}")
     except subprocess.CalledProcessError as e:
         print(f"\n[ERROR] Build gagal: {e}")
         sys.exit(1)

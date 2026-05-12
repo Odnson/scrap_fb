@@ -18,7 +18,9 @@ Facebook Group Scraper dengan GUI untuk konfigurasi credential dan cookies. Supp
 pip install -r requirements.txt
 ```
 
-### Build EXE
+### Build untuk Windows
+
+#### Build EXE
 
 Jalankan script build:
 
@@ -33,7 +35,7 @@ Pilih opsi:
 
 EXE akan dibuat di folder `dist/`.
 
-### Build Installer (Windows)
+#### Build Installer (Windows)
 
 Untuk membuat installer yang siap didistribusikan:
 
@@ -54,6 +56,34 @@ Atau manual:
 2. Jalankan `iscc installer.iss` (Inno Setup Compiler)
 
 Installer akan bernama `FacebookGroupScraper_Setup.exe`.
+
+### Build untuk macOS
+
+#### Build .app
+
+Jalankan script build:
+
+```bash
+python3 build_exe.py
+```
+
+Atau gunakan script khusus Mac:
+
+```bash
+chmod +x build_mac.sh
+./build_mac.sh
+```
+
+Script `build_mac.sh` akan:
+- Build .app bundle dengan PyInstaller
+- Create .dmg image untuk distribusi
+- .dmg akan dibuat di folder `FacebookGroupScraper_Setup.dmg`
+
+#### Opsional: Install create-dmg untuk .dmg yang lebih bagus
+
+```bash
+brew install create-dmg
+```
 
 ## Penggunaan
 
