@@ -40,6 +40,7 @@ ENV/
 
 # Config files (contains sensitive data)
 cookies.txt
+cookies (1).txt
 facebook_cookies.json
 scraper_config.json
 

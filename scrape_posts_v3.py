@@ -191,6 +191,21 @@ def extract_post_url(post_element):
         pass
     return ''
 
+def extract_post_id(post_url):
+    """Extract post ID dari URL post"""
+    if not post_url:
+        return ''
+    try:
+        # URL format: https://www.facebook.com/groups/xxx/posts/123456789
+        # atau: https://www.facebook.com/123456789/posts/987654321
+        parts = post_url.split('/posts/')
+        if len(parts) > 1:
+            post_id = parts[1].split('/')[0].split('?')[0]
+            return post_id
+    except:
+        pass
+    return ''
+
 def expand_post(driver, post_element):
     """Klik See more dan View more comments"""
     try:
@@ -746,6 +761,7 @@ def extract_post_data(driver, post_element, open_modal=False):
         profile_map = collect_profile_links(post_element)
         post_images = extract_post_images(post_element)
         post_url = extract_post_url(post_element)
+        post_id = extract_post_id(post_url)
         
         # Poster URL: cari di profile_map berdasarkan nama
         poster_url = profile_map.get(poster_name.lower(), '')
@@ -802,6 +818,7 @@ def extract_post_data(driver, post_element, open_modal=False):
             'post_content': post_content,
             'post_image_urls': ' | '.join(post_images),
             'post_url': post_url,
+            'post_id': post_id,
             'post_date': post_date,
             'comments': comments
         }
@@ -894,14 +911,14 @@ def scrape_while_scroll(driver, group_url, max_no_new=8, scroll_delay=3, save_ca
     print(f"\n[SELESAI] Total post: {len(results)}")
     return results
 
-def save_to_csv(posts, filename):
+def save_to_csv(posts, filename, start_time=None, end_time=None):
     """1 baris per komentar (jika 0 komentar, tetap 1 baris dengan kolom commenter kosong)"""
     try:
         with open(filename, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = ['no', 'poster_name', 'poster_profile_url', 'post_content',
-                          'post_image_urls', 'post_url', 'post_date',
-                          'commenter_name', 'commenter_profile_url', 'comment_text',
-                          'scraped_at']
+            fieldnames = ['no', 'post_id', 'poster_name', 'poster_profile_url', 'post_content',
+                          'post_image_urls', 'post_url', 'post_date', 'scrape_start_time',
+                          'scrape_end_time', 'commenter_name', 'commenter_profile_url',
+                          'comment_text', 'scraped_at']
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -909,12 +926,15 @@ def save_to_csv(posts, filename):
             row_no = 0
             for p in posts:
                 base = {
+                    'post_id': p.get('post_id', ''),
                     'poster_name': p['poster_name'],
                     'poster_profile_url': p['poster_profile_url'],
                     'post_content': p['post_content'],
                     'post_image_urls': p['post_image_urls'],
                     'post_url': p['post_url'],
                     'post_date': p['post_date'],
+                    'scrape_start_time': start_time.strftime("%Y-%m-%d %H:%M:%S") if start_time else '',
+                    'scrape_end_time': end_time.strftime("%Y-%m-%d %H:%M:%S") if end_time else now,
                     'scraped_at': now
                 }
                 
@@ -924,10 +944,8 @@ def save_to_csv(posts, filename):
                         writer.writerow({**base, 'no': row_no, **c})
                 else:
                     row_no += 1
-                    writer.writerow({**base, 'no': row_no,
-                                     'commenter_name': '',
-                                     'commenter_profile_url': '',
-                                     'comment_text': ''})
+                    writer.writerow({**base, 'no': row_no, 'commenter_name': '',
+                                    'commenter_profile_url': '', 'comment_text': ''})
         
         print(f"\nDisimpan ke: {filename} ({row_no} baris)")
         return True
@@ -982,22 +1000,39 @@ def main():
     else:
         print("\n[INFO] Mode: Scrap komentar visible saja (lebih cepat)")
     
+    # Setup logging
+    log_file = os.path.join(OUTPUT_DIR, f"facebook_posts_v3_instance_{instance_num}_log.txt")
+    
+    def log_message(message):
+        """Log ke file dan console"""
+        print(message)
+        with open(log_file, 'a', encoding='utf-8') as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"[{timestamp}] {message}\n")
+    
+    # Track waktu
+    start_time = datetime.now()
+    log_message(f"Scrape dimulai: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    log_message(f"Group URL: {GROUP_URL}")
+    log_message(f"Max Posts: {MAX_POSTS}")
+    
     driver = setup_driver()
     posts = []
     
     def save_partial(data):
         # Tambahkan instance number ke filename untuk multi-run
         filename = os.path.join(OUTPUT_DIR, f"facebook_posts_v3_instance_{instance_num}_partial.csv")
-        save_to_csv(data, filename)
+        save_to_csv(data, filename, start_time, datetime.now())
+        log_message(f"Partial save: {len(data)} posts")
     
     try:
         driver.get(GROUP_URL)
         time.sleep(3)
-        print("\nLogin dengan cookies...")
+        log_message("\nLogin dengan cookies...")
         if not load_cookies(driver, COOKIES_FILE, COOKIES_TYPE):
-            print("Login gagal!")
+            log_message("Login gagal!")
             return
-        print("Login berhasil!")
+        log_message("Login berhasil!")
         
         posts = scrape_while_scroll(driver, GROUP_URL, max_no_new=15, scroll_delay=5, 
                                     save_callback=save_partial, open_modal=OPEN_MODAL_FOR_COMMENTS)
@@ -1014,24 +1049,31 @@ def main():
                 print(f"      - {c['commenter_name']}: {c['comment_text'][:60]}")
         
         if posts:
+            end_time = datetime.now()
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = os.path.join(OUTPUT_DIR, f"facebook_posts_v3_instance_{instance_num}_{ts}.csv")
-            save_to_csv(posts, filename)
+            save_to_csv(posts, filename, start_time, end_time)
+            log_message(f"Scrape selesai: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            log_message(f"Total waktu: {end_time - start_time}")
+            log_message(f"Total posts: {len(posts)}")
     
     except KeyboardInterrupt:
-        print(f"\n\n[INTERRUPTED] Menyimpan {len(posts)} post...")
+        end_time = datetime.now()
+        log_message(f"\n[INTERRUPTED] Menyimpan {len(posts)} post...")
         if posts:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = os.path.join(OUTPUT_DIR, f"facebook_posts_v3_instance_{instance_num}_{ts}_interrupted.csv")
-            save_to_csv(posts, filename)
+            save_to_csv(posts, filename, start_time, end_time)
+            log_message(f"Total waktu: {end_time - start_time}")
     except Exception as e:
-        print(f"Error: {e}")
+        end_time = datetime.now()
+        log_message(f"Error: {e}")
         if posts:
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = os.path.join(OUTPUT_DIR, f"facebook_posts_v3_instance_{instance_num}_{ts}_error.csv")
-            save_to_csv(posts, filename)
+            save_to_csv(posts, filename, start_time, end_time)
     finally:
-        print("\nMenutup browser...")
+        log_message("Menutup browser...")
         try:
             time.sleep(2)
             driver.quit()

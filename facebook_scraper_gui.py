@@ -141,6 +141,16 @@ class FacebookScraperGUI:
         log_frame = ttk.Frame(log_tab, padding="10")
         log_frame.pack(fill='both', expand=True)
         
+        # Log file selector
+        log_selector_frame = ttk.Frame(log_frame)
+        log_selector_frame.pack(fill='x', pady=5)
+        
+        ttk.Label(log_selector_frame, text="Log File:").pack(side='left')
+        self.log_file_var = tk.StringVar()
+        ttk.Entry(log_selector_frame, textvariable=self.log_file_var, width=50).pack(side='left', padx=5)
+        ttk.Button(log_selector_frame, text="Browse", command=self.browse_log_file).pack(side='left', padx=5)
+        ttk.Button(log_selector_frame, text="Refresh", command=self.refresh_log).pack(side='left', padx=5)
+        
         # Log text area
         self.log_text = tk.Text(log_frame, wrap='word', height=20)
         self.log_text.pack(fill='both', expand=True)
@@ -149,6 +159,10 @@ class FacebookScraperGUI:
         scrollbar = ttk.Scrollbar(log_frame, orient='vertical', command=self.log_text.yview)
         scrollbar.pack(side='right', fill='y')
         self.log_text.config(yscrollcommand=scrollbar.set)
+        
+        # Auto-refresh checkbox
+        self.auto_refresh_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(log_frame, text="Auto-refresh (5s)", variable=self.auto_refresh_var, command=self.toggle_auto_refresh).pack(pady=5)
     
     def browse_cookies_file(self):
         """Browse untuk file cookies"""
@@ -164,6 +178,47 @@ class FacebookScraperGUI:
         dirname = filedialog.askdirectory(title="Pilih Output Directory")
         if dirname:
             self.output_dir_var.set(dirname)
+    
+    def browse_log_file(self):
+        """Browse untuk file log"""
+        filename = filedialog.askopenfilename(
+            title="Pilih File Log",
+            filetypes=[("Log Files", "*.txt"), ("Text Files", "*.txt"), ("All Files", "*.*")]
+        )
+        if filename:
+            self.log_file_var.set(filename)
+            self.refresh_log()
+    
+    def refresh_log(self):
+        """Refresh log file content"""
+        log_file = self.log_file_var.get()
+        if not log_file or not os.path.exists(log_file):
+            self.log_text.delete(1.0, tk.END)
+            self.log_text.insert(tk.END, "Tidak ada file log yang dipilih atau file tidak ditemukan.")
+            return
+        
+        try:
+            with open(log_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            self.log_text.delete(1.0, tk.END)
+            self.log_text.insert(tk.END, content)
+            self.log_text.see(tk.END)
+        except Exception as e:
+            self.log_text.delete(1.0, tk.END)
+            self.log_text.insert(tk.END, f"Error membaca file log: {e}")
+    
+    def toggle_auto_refresh(self):
+        """Toggle auto-refresh log"""
+        if self.auto_refresh_var.get():
+            self.auto_refresh_log()
+        else:
+            self.root.after_cancel(self.refresh_job) if hasattr(self, 'refresh_job') else None
+    
+    def auto_refresh_log(self):
+        """Auto-refresh log setiap 5 detik"""
+        if self.auto_refresh_var.get():
+            self.refresh_log()
+            self.refresh_job = self.root.after(5000, self.auto_refresh_log)
     
     def save_configuration(self):
         """Simpan konfigurasi"""
